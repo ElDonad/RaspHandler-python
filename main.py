@@ -22,9 +22,8 @@ def isStopping():
 
 def stop(args):
     print("stop demandé")
-    for interface in interfaces:
-        interface.unsuscribe('stop', stop)
-        interface.stop('parce que')
+    for linterface in interfaces:
+        linterface.unsuscribe('stop', stop)
     global mustStop
     mustStop = True
 
@@ -36,7 +35,7 @@ def save(args):
     pickle.dump(toSave, f)
 
 def restore(args):
-    
+
     saved = pickle.load(open('save', 'rb'))
     count = 0
     for interface in interfaces:
@@ -59,7 +58,7 @@ gpio.init()
 
 interfaces.append(DirectAiguillageHandler(res))
 interfaces.append(ConsoleUserHandler(res))
-interfaces.append(NetworkInterface(res))
+#interfaces.append(NetworkInterface(res))
 
 #interfaces[1].subscribe('stop', None, stop)
 print(interfaces)
@@ -67,7 +66,6 @@ for linterface in interfaces:
     linterface.subscribe('stop', None, stop)
     linterface.subscribe('save', None, save)
     linterface.subscribe('restore', None, restore)
-    print('top')
 
     linterface.init()
 

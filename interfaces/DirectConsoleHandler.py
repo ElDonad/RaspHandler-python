@@ -2,6 +2,7 @@
 
 from interface import Interface
 from threading import Thread, RLock
+import threading
 import time
 import readchar
 from aiguillage import Aiguillage, Direction, AlimentationState, PinState
@@ -18,28 +19,23 @@ class ProgrammStoppedExcept(Exception):
 class ConsoleUserHandler(Interface):
     id = 'ConsoleUserHandler'
 
-
-    def isStopping(self):
-        return self.__isStopping
-
     def stop(self, reason="Le programme c'est arrêté normalement"):
-        self.__isStopping = True
-        self.emit('stop', reason)
+        self.isStopping = True
 
     def update(self):
         self.processListLock.acquire()
-        self.eventListLock.acquire()
-        for event in self.eventList:
-            self.emit(*event)
 
         for process in self.processList:
-            process[0](*(process[1]))
+            if process[0] == 'event':
 
-        self.processList = []
-        self.eventList = []
+                print(threading.currentThread().getName() + process[0])
+                self.emit(*process[1])
+            elif process[0] == 'process':
+                process[1][0](*process[1][1])
+
+        self.processList[:] = []
 
         self.processListLock.release()
-        self.eventListLock.release()
 
     class ConsoleThread(Thread):
         def __init__(self, parent, isStopping):
@@ -53,18 +49,18 @@ class ConsoleUserHandler(Interface):
             self.backspace = chars[1]
 
         def queue(self, *event):
-            self.parent.eventListLock.acquire()
-            self.parent.eventList.append(tuple(event))
-            self.parent.eventListLock.release()
+            self.parent.processListLock.acquire()
+            self.parent.processList.append(('event',tuple(event)))
+            self.parent.processListLock.release()
 
         def sync(self, func, *args):
             self.parent.processListLock.acquire()
-            self.parent.processList.append((func, tuple(args)))
+            self.parent.processList.append(('process',(func, tuple(args))))
             self.parent.processListLock.release()
 
         def run(self):
             try:
-                while(self.parent.isStopping() == False):
+                while(self.parent.isStopping == False):
                     print("\n \n \n +++ RaspHandler v.P0.1a +++")
                     print("1. run a new instance")
                     print("2. restore previous instance \n")
@@ -76,7 +72,7 @@ class ConsoleUserHandler(Interface):
                     elif truc == '1':
                         print ('> Running new instance... \n')
                         run = True
-                    while(run == True and self.parent.isStopping() == False):
+                    while(run == True and self.parent.isStopping == False):
                         print('\n++ Menu principal ++')
                         print("1. consulter la liste des aiguillages")
                         print("2. ajouter ou supprimer des aiguillages")
@@ -149,8 +145,10 @@ class ConsoleUserHandler(Interface):
             while True:
                 toReturn = input('> ' + message)
                 if toReturn == 'x':
-                    stop = lambda self: self.parent.stop()
+                    stop = lambda self: print('stop depuis safeTYpe'); self.parent.stop()
                     self.sync(stop, self)
+                    self.queue('stop', None)
+                    raise ProgrammStoppedExcept("Le programme s'est arrêté normalement.")
                 if number == True:
                     try:
                         toReturn = int(toReturn)
@@ -159,9 +157,6 @@ class ConsoleUserHandler(Interface):
                     else:
                         valid = True
                         return toReturn
-
-                if (self.parent.isStopping() == True):
-                    raise ProgrammStoppedExcept("Le programme s'est arrêté normalement.")
 
                 if number != True or (number == True and valid != False):
                     break
@@ -184,9 +179,9 @@ class ConsoleUserHandler(Interface):
                 else:
                     break
             if (toReturn == 'x' or toReturn == readchar.key.END):
-                stop = lambda self: self.parent.stop()
+                stop = lambda self:print('stop depuis safeInput'); self.parent.stop()
                 self.sync(stop, self)
-            if (self.parent.isStopping() == True):
+                self.queue('stop', None)
                 raise ProgrammStoppedExcept("Le programme c'est arrêté normalement")
             return toReturn
 
@@ -319,7 +314,7 @@ class ConsoleUserHandler(Interface):
 
                         pinStates.append(PinState(pinNum, state, direction))
                         print("continuer ? (O/N)")
-                        truc = 'mabite'
+                        truc = None
                         while True:
                             truc = self.safeInput()
                             if truc == 'O' or truc == 'o':
@@ -342,11 +337,9 @@ class ConsoleUserHandler(Interface):
     def __init__(self, res, save = None):
         super().__init__()
 
-        self.eventListLock = RLock()
-        self.eventList = []
         self.processListLock = RLock()
         self.processList = []
-        self.__isStopping = False
+        self.isStopping = False
 
         self.consoleThread = ConsoleUserHandler.ConsoleThread(self, self.isStopping)
         self.res = res

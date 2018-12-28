@@ -1,35 +1,37 @@
 import random
+import threading
 
 class EventObj:
     __nextId = 0
 
     def __init__(self):
-        self.__subscribers = {}
+        self.subscribers = {}
 
     def getNewId():
         EventObj.__nextId += 1
         return EventObj.__nextId - 1
 
     def subscribe(self, eventName, target, func):
-        print('tip' + eventName + str(self))
         newId = EventObj.getNewId()
-        self.__subscribers[newId] = (eventName, target, func)
+        self.subscribers[newId] = (eventName, target, func)
         return newId
 
     def unsuscribe(self, eventName, func):
+        print('unsuscribe passed ' + threading.currentThread().getName())
         idToDelete = None
-        for id, event in self.__subscribers.items():
+        for id, event in self.subscribers.items():
             if event[0] == eventName and event[2] == func:
                 idToDelete = id
         if idToDelete != None:
-            print('coucou'  +str(len(self.__subscribers)))
-            del self.__subscribers[idToDelete]
-            
+            del self.subscribers[idToDelete]
+
     def emit(self, eventName, args):
-        for value, sub in self.__subscribers.items():
-            if (sub[0] == eventName):
-                target = sub[1]
-                if target != None:
-                    sub[2](target, args)
-                else:
-                    sub[2](args)
+        emitters = []
+        for value, sub in self.subscribers.items():
+            if sub[0] == eventName:
+                emitters.append((sub[1], sub[2]))
+        for emitter in emitters:
+            if emitter[0] == None:
+                emitter[1](args)
+            else:
+                emitter[1](emitter[0], args)
