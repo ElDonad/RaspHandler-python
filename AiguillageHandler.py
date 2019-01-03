@@ -15,6 +15,13 @@ class Alimentation(EventObj):
             return True
         return False
 
+    def serialize(self):
+        return {
+            'name': self.name,
+            'pin': self.pin,
+            'pin_state': self.state
+        }
+
 class AiguillageHandler(Interface):
 
     def __init__(self):

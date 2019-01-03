@@ -15,6 +15,7 @@ class SimpleAiguillage(Aiguillage):
     type = 'SimpleAiguillage'
 
     def __init__(self, directions=None, defaultDirection=None, alimentation=None, name=None, fromBuilder=False, builderData={}, postInit = False):
+        super().__init__()
         if postInit == True:
             return
 
@@ -45,6 +46,7 @@ class SimpleAiguillage(Aiguillage):
         self.switchThread.start()
 
     def switch(self, targetDirection):
+        print("Coucou, du switch" + targetDirection)
         self.targetDirection = targetDirection
         self.switchThread = SimpleAiguillage.SimpleAiguillageSwitcher(self)
         self.switchThread.start()
@@ -63,6 +65,13 @@ class SimpleAiguillage(Aiguillage):
     def restore(self, data):
         super().restore(data)
         self.alimentation = data['alimentation']
+
+    def serialize(self):
+        toReturn = super().serialize()
+        toReturn.update({
+            'alimentation':self.alimentation.serialize()
+        })
+        return toReturn
 
 
     class SimpleAiguillageSwitcher(Thread):

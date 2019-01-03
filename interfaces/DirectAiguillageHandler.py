@@ -28,6 +28,7 @@ class DirectAiguillageHandler(AiguillageHandler):
                 aiguillage.subscribe('toggleAlimentation', self, DirectAiguillageHandler.toggleAlimentation)
                 aiguillage.subscribe('setPinState', self, DirectAiguillageHandler.setPinState)
                 aiguillage.subscribe('setupPin', self, DirectAiguillageHandler.setupPin)
+                aiguillage.subscribe('aiguillageSwitched', self, DirectAiguillageHandler.aiguillageSwitched)
 
                 aiguillage.init()
                 self.aiguillages.append(aiguillage)
@@ -57,6 +58,10 @@ class DirectAiguillageHandler(AiguillageHandler):
     def setupPin(self, args):
         gpio.setup(args['pin'], gpio.OUT)
 
+    def aiguillageSwitched(self, args):
+        print("[DIRECTAIGUILLAGEHANDLER]aiguillage switched")
+        self.emit('aiguillageSwitched', args)#args : aiguillage
+
     def save(self):
         print(super().save())
         toReturn = super().save()
@@ -71,6 +76,13 @@ class DirectAiguillageHandler(AiguillageHandler):
         super().restore(data)
         self.claimedPinStates = data['claimedPinStates']
         self.alimentations = data['alimentations']
+        for aiguillage in self.aiguillages:
+            aiguillage.subscribe('toggleAlimentation', self, DirectAiguillageHandler.toggleAlimentation)
+            aiguillage.subscribe('setPinState', self, DirectAiguillageHandler.setPinState)
+            aiguillage.subscribe('setupPin', self, DirectAiguillageHandler.setupPin)
+            aiguillage.subscribe('aiguillageSwitched', self, DirectAiguillageHandler.aiguillageSwitched)
+
+            aiguillage.init()
 
     def update(self):
         pass

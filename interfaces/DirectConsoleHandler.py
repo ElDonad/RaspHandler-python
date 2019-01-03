@@ -28,7 +28,6 @@ class ConsoleUserHandler(Interface):
         for process in self.processList:
             if process[0] == 'event':
 
-                print(threading.currentThread().getName() + process[0])
                 self.emit(*process[1])
             elif process[0] == 'process':
                 process[1][0](*process[1][1])
@@ -123,7 +122,6 @@ class ConsoleUserHandler(Interface):
                             toSwitch = self.parent.res('aiguillages')[truc]
 
                             direction = self.getValidDirections(toSwitch[1], input=True)
-                            #toSwitch[1].switch(direction)
                             switch = lambda toSwitch, direction: toSwitch.switch(direction)
                             self.sync(switch, toSwitch[1], direction)
 
@@ -145,7 +143,7 @@ class ConsoleUserHandler(Interface):
             while True:
                 toReturn = input('> ' + message)
                 if toReturn == 'x':
-                    stop = lambda self: print('stop depuis safeTYpe'); self.parent.stop()
+                    stop = lambda self: self.parent.stop()
                     self.sync(stop, self)
                     self.queue('stop', None)
                     raise ProgrammStoppedExcept("Le programme s'est arrêté normalement.")
@@ -179,7 +177,7 @@ class ConsoleUserHandler(Interface):
                 else:
                     break
             if (toReturn == 'x' or toReturn == readchar.key.END):
-                stop = lambda self:print('stop depuis safeInput'); self.parent.stop()
+                stop = lambda self: self.parent.stop()
                 self.sync(stop, self)
                 self.queue('stop', None)
                 raise ProgrammStoppedExcept("Le programme c'est arrêté normalement")
@@ -242,7 +240,7 @@ class ConsoleUserHandler(Interface):
                 print(str(count) + ". " + direction.direction)
                 count += 1
             if (input == True):
-                return Direction.directionsList[int(self.safeInput())]
+                return Direction.directionsList[int(self.safeInput()) - 1]
 
         def constructAiguillage(self):
             print("> Entrez le type de l'aiguillage : ")

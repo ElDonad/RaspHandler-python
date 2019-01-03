@@ -27,3 +27,6 @@ class Interface(EventObj):
         self.id = data['id']
         self.allowUserInteraction = data['allowUserInteraction']
         self.allowAiguillageHandling = data['allowAiguillageHandling']
+
+    def onAiguillageSwitched(self, aiguillage):
+        print("[INTERFACE]Aiguillage switched")

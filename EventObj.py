@@ -17,7 +17,6 @@ class EventObj:
         return newId
 
     def unsuscribe(self, eventName, func):
-        print('unsuscribe passed ' + threading.currentThread().getName())
         idToDelete = None
         for id, event in self.subscribers.items():
             if event[0] == eventName and event[2] == func:

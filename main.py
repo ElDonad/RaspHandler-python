@@ -21,7 +21,6 @@ def isStopping():
 
 
 def stop(args):
-    print("stop demandé")
     for linterface in interfaces:
         linterface.unsuscribe('stop', stop)
     global mustStop
@@ -47,18 +46,21 @@ def res(type):
         aiguillagesList = []
         for interface in interfaces:
             if interface.allowAiguillageHandling == True:
-                print('interface found !')
                 for aiguillage in interface.aiguillages:
                     aiguillagesList.append((interface, aiguillage))
         return aiguillagesList
     elif type == 'interfaces':
         return interfaces
 
+def aiguillageSwitched(aiguillage):
+    for interface in interfaces:
+        interface.onAiguillageSwitched(aiguillage);
+
 gpio.init()
 
 interfaces.append(DirectAiguillageHandler(res))
 interfaces.append(ConsoleUserHandler(res))
-#interfaces.append(NetworkInterface(res))
+interfaces.append(NetworkInterface(res))
 
 #interfaces[1].subscribe('stop', None, stop)
 print(interfaces)
@@ -66,6 +68,7 @@ for linterface in interfaces:
     linterface.subscribe('stop', None, stop)
     linterface.subscribe('save', None, save)
     linterface.subscribe('restore', None, restore)
+    linterface.subscribe('aiguillageSwitched', None, aiguillageSwitched)
 
     linterface.init()
 
