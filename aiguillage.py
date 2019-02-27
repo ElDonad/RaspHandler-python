@@ -1,12 +1,13 @@
 from EventObj import EventObj
 from pinHandler import gpio
-import json
+
 
 class Direction:
     LEFT = 'left'
     RIGHT = 'right'
     MIDDLE = 'middle'
     INVALID = 'invalid'
+
     def getAbbDir(direction):
         if direction == Direction.LEFT:
             return 'LFT'
@@ -27,22 +28,24 @@ class Direction:
         elif direction == Direction.INVALID:
             return 0
 
-
     directionsList = [
         LEFT,
         RIGHT,
         MIDDLE
     ]
 
+
 class AlimentationState:
     HIGH = 1
     LOW = 0
     UNDEFINED = -1
+
     def toGpioState(state):
         if state == AlimentationState.HIGH:
             return gpio.HIGH
         else:
             return gpio.LOW
+
 
 class PinState:
     def __init__(self, pin, state, direction):
@@ -57,33 +60,35 @@ class PinState:
 
     def serialize(self):
         return {
-            'direction':self.direction,
-            'pin':self.pin,
-            'pin_state':self.pinState
+            'direction': self.direction,
+            'pin': self.pin,
+            'pin_state': self.pinState
         }
+
 
 class Aiguillage(EventObj):
 
     compatibleSinglePinMode = False
-    composer = {'name':'string', 'defaultDirection':'direction'}
+    composer = {'name': 'string', 'defaultDirection': 'direction'}
     type = 'Aiguillage'
     nextId = 0
 
     def __init__(self, name=None, directions=None):
         super().__init__()
         self.name = name
-        self.directions = directions #tuple: ( int, direction: string, pinState : dict)
+        self.directions = directions  # tuple: ( int, direction: string, pinState : dict)
         self.id = Aiguillage.getNextId()
 
     targetDirection = 0
     currentDirection = 0
+
     def save(self):
         return {
-            'tag':self.name,
-            'target_direction':self.targetDirection,
-            'current_direction':self.currentDirection,
-            'directions':self.directions,
-            'type':self.type,
+            'tag': self.name,
+            'target_direction': self.targetDirection,
+            'current_direction': self.currentDirection,
+            'directions': self.directions,
+            'type': self.type,
             'id': self.id
         }
 
@@ -93,10 +98,10 @@ class Aiguillage(EventObj):
             directionsArray.append(direction.serialize())
 
         return{
-            'tag':self.name,
+            'tag': self.name,
             'target_direction': self.targetDirection,
             'current_direction': self.currentDirection,
-            'type':self.type,
+            'type': self.type,
             'directions': directionsArray,
             'aiguillage_id': self.id
 

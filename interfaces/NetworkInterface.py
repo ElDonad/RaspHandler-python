@@ -1,15 +1,17 @@
 from interface import Interface
-import threading
 from threading import RLock
 import socket
 import select
 import json
 import random
 import string
+import AiguillageBuilder
+
 
 class Client:
 
     previousIds = []
+
     def __init__(self, socket=None, name=None, id=None):
         self.sock = socket
         self.name = name
@@ -21,13 +23,12 @@ class Client:
             if newId not in Client.previousIds:
                 return newId
 
+
 class NetworkInterface(Interface):
     allowAiguillageHandling = True
     allowUserInteraction = True
     compatibleSinglePinMode = True
-    id='NetworkInterface'
-
-
+    id = 'NetworkInterface'
 
     def __init__(self, res):
         super().__init__()
@@ -47,7 +48,7 @@ class NetworkInterface(Interface):
     def init(self):
         print('creating socket...')
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.serverSocket.bind(('',2121))
+        self.serverSocket.bind(('', 2121))
         self.serverSocket.listen(5)
         print('server is now listening on port 2121')
 
@@ -58,7 +59,7 @@ class NetworkInterface(Interface):
 
     def sync(self, func, *args):
         self.processListLock.acquire()
-        self.processList.append((func,tuple(args)))
+        self.processList.append((func, tuple(args)))
         self.processListLock.release()
 
     def update(self):
@@ -68,20 +69,21 @@ class NetworkInterface(Interface):
             readSock.append(client.sock)
 
         readable, writable, errored = select.select(readSock, [], [], 0.001)
-        for socket in readable:
-            if socket is self.serverSocket:
-                client, adress = socket.accept()
+        for loopSocket in readable:
+            if loopSocket is self.serverSocket:
+                client, adress = loopSocket.accept()
                 print('> nouvelle connection entrante...')
                 self.clients.append(Client(client))
             else:
-                if socket in self.socketBuffers:
-                    self.socketBuffers[socket] += socket.recv(2048)
-                    print(self.socketBuffers[socket])
+                if loopSocket in self.socketBuffers:
+                    self.socketBuffers[loopSocket] += loopSocket.recv(2048)
+                    print(self.socketBuffers[loopSocket])
                 else:
-                    self.socketBuffers[socket] = socket.recv(2048)
+                    self.socketBuffers[loopSocket] = loopSocket.recv(2048)
 
-                futureMessage = bytearray(self.socketBuffers[socket])
+                futureMessage = bytearray(self.socketBuffers[loopSocket])
                 futureMessage = futureMessage.decode()
+                del self.socketBuffers[loopSocket]
 
                 message = None
                 idHeader = futureMessage.find('[beginMsg=')
@@ -89,69 +91,106 @@ class NetworkInterface(Interface):
                 if idHeader != -1:
                     key = futureMessage[idHeader + len('[beginMsg='):idHeader + len('[beginMsg=') + 10]
                 idEnd = NetworkInterface.findStr(futureMessage, "[endMsg=")
+                nextEndId = 0
                 for it in idEnd:
-                    endKey = futureMessage[it + len('[endMsg='):it + len('[endMsg=')+ 10]
+                    endKey = futureMessage[it + len('[endMsg='):it + len('[endMsg=') + 10]
                     if endKey == key:
-                        message = futureMessage[len('[]beginMsg=') + 10 - 1: it]
-                        self.socketBuffers[socket] = self.socketBuffers[socket][it + len('[]endMsg=') + 10 + 1:]
+                        message = futureMessage[nextEndId + len('[]beginMsg=') + 10 - 1: it]
+                        nextEndId = it + len('[]endMsg=') + 10 - 1
+                        # self.socketBuffers[socket] = self.socketBuffers[socket][it + len('[]endMsg=') + 10 + 1:]
+                        # futureMessage = futureMessage[it + len("endMsg[]=") + 10 + 1:]
 
-                if message != None:
-                    print("message : ",message)
-                    message = json.loads(message)
-                    client = None
-                    for cl in self.clients:
-                        if cl.sock == socket:
-                            client = cl
+                    if message is not None:
+                        print("message : ", message)
+                        message = json.loads(message)
+                        client = None
+                        for cl in self.clients:
+                            if cl.sock == loopSocket:
+                                client = cl
 
-                    eventType = message['event_type']
-                    print(eventType)
+                        eventType = message['event_type']
+                        print(eventType)
 
-                    if eventType == "SendHeadMessage":
-                        if message['wish_recover'] == True:
-                            pass
-                        else:
-                            client.id = Client.generateNewId()
+                        if eventType == "SendHeadMessage":
+                            if message['wish_recover'] is True:
+                                pass
+                            else:
+                                client.id = Client.generateNewId()
+                                answer = {}
+                                answer['event_type'] = 'Logged'
+                                answer['is_recovered'] = False
+                                answer['key'] = client.id
+                                self.sendMessage(loopSocket, json.dumps(answer))
+
+                        elif eventType == "GetAiguillages":
+                            print('sending aiguillage data')
                             answer = {}
-                            answer['event_type'] = 'Logged'
-                            answer['is_recovered'] = False
-                            answer['key'] = client.id
-                            self.sendMessage(socket, json.dumps(answer))
+                            interfaces = self.res('interfaces')
+                            aiguillagesList = []
+                            interfaceId = 0
+                            for interface in interfaces:
+                                if interface.allowAiguillageHandling:
+                                    for aiguillage in interface.aiguillages:
+                                        toAdd = aiguillage.serialize()
+                                        toAdd['aiguillage_handler_id'] = interfaceId
+                                        aiguillagesList.append(toAdd)
+                                        interfaceId += 1
+                            answer['event_type'] = 'GotAiguillages'
+                            answer['aiguillages'] = aiguillagesList
+                            self.sendMessage(loopSocket, json.dumps(answer))
 
+                        elif eventType == "SwitchAiguillage":
+                            aiguillageHandlers = []
+                            for interface in self.res('interfaces'):
+                                if interface.allowAiguillageHandling:
+                                    aiguillageHandlers.append(interface)
+                            aiguillage = aiguillageHandlers[message['aiguillage_handler_id']].aiguillages[message['aiguillage_id']]
+                            aiguillage.switch(message['target_direction'])
 
-                    elif eventType == "GetAiguillages":
-                        print('sending aiguillage data')
-                        answer = {}
-                        interfaces = self.res('interfaces')
-                        aiguillagesList = []
-                        interfaceId = 0
-                        for interface in interfaces:
-                            if interface.allowAiguillageHandling:
-                                for aiguillage in interface.aiguillages:
-                                    toAdd = aiguillage.serialize()
-                                    toAdd['aiguillage_handler_id'] = interfaceId
-                                    aiguillagesList.append(toAdd)
-                                    interfaceId += 1
-                        answer['event_type'] = 'GotAiguillages'
-                        answer['aiguillages'] = aiguillagesList
-                        self.sendMessage(socket, json.dumps(answer))
+                        elif eventType == "GetFullData":
+                            answer = {}
+                            interfaces = self.res("interfaces")
+                            interfaceId = 0
+                            aiguillagesList = []
+                            alimentationsList = []
+                            for interface in interfaces:
+                                if interface.allowAiguillageHandling:
+                                    for aiguillage in interface.aiguillages:
+                                        toAdd = aiguillage.serialize()
+                                        toAdd["aiguillage_handler_id"] = interfaceId
+                                        aiguillagesList.append(toAdd)
 
+                                        if interface.compatibleSinglePinMode is True:
+                                            for alimentation in interface.alimentations:
+                                                toAdd = {}
+                                                toAdd['coord'] = alimentation[0]
+                                                print(toAdd['coord'])
+                                                toAdd['alimentation'] = alimentation[1].serialize()
+                                                toAdd['coord']["aiguillage_handler_id"] = interfaceId
+                                                alimentationsList.append(toAdd)
+                                interfaceId += 1
 
-                    elif eventType == "SwitchAiguillage":
-                        aiguillageHandlers = []
-                        for interface in self.res('interfaces'):
-                            if interface.allowAiguillageHandling:
-                                aiguillageHandlers.append(interface)
-                        aiguillage = aiguillageHandlers[message['aiguillage_handler_id']].aiguillages[message['aiguillage_id']]
-                        aiguillage.switch(message['target_direction'])
+                            answer['event_type'] = "GotFullData"
+                            answer['data'] = {}
+                            answer["data"]['aiguillages'] = aiguillagesList
+                            answer["data"]["alimentations"] = alimentationsList
+                            self.sendMessage(loopSocket, json.dumps(answer))
 
+                        elif eventType == "GetAiguillageBuilders":
+                            answer = {}
+                            answer["event_type"] = "GotAiguillageBuilders"
+                            answer["data"] = AiguillageBuilder.AiguillageBuilder.getAiguillageBuilders()
+                            self.sendMessage(loopSocket, json.dumps(answer))
 
-
+                        elif eventType == "AddAiguillage":
+                            print(message)
 
     def log(message):
         print('[DEBUG] NetworkInterface : ' + message)
 
     def save(self):
         return super().save()
+
     def restore(self, data):
         super().restore(data)
 

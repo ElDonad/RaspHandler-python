@@ -1,5 +1,6 @@
 from EventObj import EventObj
 
+
 class Interface(EventObj):
     id = 'Interface'
     allowUserInteraction = False
@@ -7,6 +8,7 @@ class Interface(EventObj):
 
     def __init__(self):
         super().__init__()
+
     def launch(self):
         pass
 
@@ -18,9 +20,9 @@ class Interface(EventObj):
 
     def save(self):
         return {
-            'id':self.id,
-            'allowUserInteraction':self.allowUserInteraction,
-            'allowAiguillageHandling':self.allowAiguillageHandling
+            'id': self.id,
+            'allowUserInteraction': self.allowUserInteraction,
+            'allowAiguillageHandling': self.allowAiguillageHandling
         }
 
     def restore(self, data):

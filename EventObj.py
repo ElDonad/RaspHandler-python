@@ -1,6 +1,3 @@
-import random
-import threading
-
 class EventObj:
     __nextId = 0
 
@@ -21,7 +18,7 @@ class EventObj:
         for id, event in self.subscribers.items():
             if event[0] == eventName and event[2] == func:
                 idToDelete = id
-        if idToDelete != None:
+        if idToDelete is not None:
             del self.subscribers[idToDelete]
 
     def emit(self, eventName, args):
@@ -30,7 +27,7 @@ class EventObj:
             if sub[0] == eventName:
                 emitters.append((sub[1], sub[2]))
         for emitter in emitters:
-            if emitter[0] == None:
+            if emitter[0] is None:
                 emitter[1](args)
             else:
                 emitter[1](emitter[0], args)

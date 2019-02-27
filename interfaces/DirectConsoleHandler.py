@@ -2,21 +2,21 @@
 
 from interface import Interface
 from threading import Thread, RLock
-import threading
-import time
+
 import readchar
-from aiguillage import Aiguillage, Direction, AlimentationState, PinState
-from AiguillageHandler import AiguillageHandler, Alimentation
+from aiguillage import Direction, AlimentationState, PinState
+from AiguillageHandler import Alimentation
 from AiguillageBuilder import AiguillageBuilder
 
-allowUserInteraction = False
-allowAiguillageHandling = True
 
 class ProgrammStoppedExcept(Exception):
     def __init__(self, message):
         self.message = message
 
+
 class ConsoleUserHandler(Interface):
+    allowUserInteraction = True
+    allowAiguillageHandling = False
     id = 'ConsoleUserHandler'
 
     def stop(self, reason="Le programme c'est arrêté normalement"):
@@ -49,17 +49,17 @@ class ConsoleUserHandler(Interface):
 
         def queue(self, *event):
             self.parent.processListLock.acquire()
-            self.parent.processList.append(('event',tuple(event)))
+            self.parent.processList.append(('event', tuple(event)))
             self.parent.processListLock.release()
 
         def sync(self, func, *args):
             self.parent.processListLock.acquire()
-            self.parent.processList.append(('process',(func, tuple(args))))
+            self.parent.processList.append(('process', (func, tuple(args))))
             self.parent.processListLock.release()
 
         def run(self):
             try:
-                while(self.parent.isStopping == False):
+                while(self.parent.isStopping is False):
                     print("\n \n \n +++ RaspHandler v.P0.1a +++")
                     print("1. run a new instance")
                     print("2. restore previous instance \n")
@@ -69,9 +69,9 @@ class ConsoleUserHandler(Interface):
                         self.queue('restore', None)
                         run = True
                     elif truc == '1':
-                        print ('> Running new instance... \n')
+                        print('> Running new instance... \n')
                         run = True
-                    while(run == True and self.parent.isStopping == False):
+                    while(run is True and self.parent.isStopping is False):
                         print('\n++ Menu principal ++')
                         print("1. consulter la liste des aiguillages")
                         print("2. ajouter ou supprimer des aiguillages")
@@ -83,7 +83,7 @@ class ConsoleUserHandler(Interface):
                             self.displayAiguillageList()
                             continue
 
-                        elif truc=="3":
+                        elif truc == "3":
                             print("\n+ Gestionnaire d'alimentation : +")
                             print("1. consulter la liste des alimentations")
                             print("2. ajouter une alimentation")
@@ -97,7 +97,7 @@ class ConsoleUserHandler(Interface):
                                 fullInterfaces = self.parent.res('interfaces')
                                 interfaces = []
                                 for interface in fullInterfaces:
-                                    if interface.allowAiguillageHandling == True:
+                                    if interface.allowAiguillageHandling is True:
                                         interfaces.append(interface)
                                 self.displayInterfacesList(filter=True, allowAiguillageHandling=True)
                                 print("> Entrez le numéro de l'interface souhaitée : ")
@@ -106,9 +106,8 @@ class ConsoleUserHandler(Interface):
                                 name = self.safeType("Entrez le nom : ")
                                 pin = int(self.safeType("Entrez le pin : "))
                                 newAlim = Alimentation(name, pin)
-                                #interface.addAlimentation(newAlim)
-                                addAlimentation = lambda interface, alim: interface.addAlimentation(alim)
-                                self.sync(addAlimentation, interface, newAlim)
+                                # interface.addAlimentation(newAlim)
+                                self.sync(lambda interface, alim: interface.addAlimentation(alim), interface, newAlim)
 
                             continue
                         elif truc == '2':
@@ -116,38 +115,33 @@ class ConsoleUserHandler(Interface):
                             self.constructAiguillage()
                         elif truc == '4':
                             print("\n++ Manipuler les aiguillages ++")
-                            print ("> Sélectionnez l'aiguillage à manipuler : ")
+                            print("> Sélectionnez l'aiguillage à manipuler : ")
                             self.displayAiguillageList()
                             truc = self.safeType('id : ', number=True) - 1
                             toSwitch = self.parent.res('aiguillages')[truc]
 
                             direction = self.getValidDirections(toSwitch[1], input=True)
-                            switch = lambda toSwitch, direction: toSwitch.switch(direction)
-                            self.sync(switch, toSwitch[1], direction)
+                            self.sync(lambda toSwitch, direction: toSwitch.switch(direction), toSwitch[1], direction)
 
                         elif truc == 's':
                             print("> Sauvegarde...")
                             self.queue('save', None)
-
-
-
                 print('console thread finished')
 
             except ProgrammStoppedExcept as ex:
                 print('programm stopped for reason : ' + ex.message)
                 return
 
-        def safeType(self, message, number = False):
+        def safeType(self, message, number=False):
             valid = False
             toReturn = None
             while True:
                 toReturn = input('> ' + message)
                 if toReturn == 'x':
-                    stop = lambda self: self.parent.stop()
-                    self.sync(stop, self)
+                    self.sync(lambda self: self.parent.stop(), self)
                     self.queue('stop', None)
                     raise ProgrammStoppedExcept("Le programme s'est arrêté normalement.")
-                if number == True:
+                if number is True:
                     try:
                         toReturn = int(toReturn)
                     except ValueError:
@@ -156,29 +150,28 @@ class ConsoleUserHandler(Interface):
                         valid = True
                         return toReturn
 
-                if number != True or (number == True and valid != False):
+                if number is not True or (number is True and valid is not False):
                     break
 
             return toReturn
 
-        def safeInput(self, number = False):
-            isValid = False
+        def safeInput(self, number=False):
+            # isValid = False
             toReturn = ''
             while True:
                 toReturn = readchar.readkey()
-                if number == True and toReturn != 'x':# au cas où on voudrait quitter en cours d'input d'un nombre...
+                if number is True and toReturn != 'x':  # au cas où on voudrait quitter en cours d'input d'un nombre...
                     try:
                         toReturn = int(toReturn)
                     except ValueError:
                         print('> Bad input, try again : ')
                     else:
-                        isValid = True
+                        # isValid = True
                         break
                 else:
                     break
             if (toReturn == 'x' or toReturn == readchar.key.END):
-                stop = lambda self: self.parent.stop()
-                self.sync(stop, self)
+                self.sync(lambda self: self.parent.stop(), self)
                 self.queue('stop', None)
                 raise ProgrammStoppedExcept("Le programme c'est arrêté normalement")
             return toReturn
@@ -199,7 +192,7 @@ class ConsoleUserHandler(Interface):
             alimentations = []
             interfaces = self.parent.res('interfaces')
             for interface in interfaces:
-                if interface.allowAiguillageHandling == True and interface.compatibleSinglePinMode == True:
+                if interface.allowAiguillageHandling is True and interface.compatibleSinglePinMode is True:
                     for alimentation in interface.alimentations:
                         alimentations.append(alimentation[1])
             print("\n \nID |Nom                 |PIN")
@@ -211,11 +204,12 @@ class ConsoleUserHandler(Interface):
         def displayInterfacesList(self, filter=False, allowUserInteraction=False, allowAiguillageHandling=False):
             toDisplay = []
             interfaces = self.parent.res('interfaces')
-            if filter == False:
+            if filter is False:
                 return interfaces
             else:
                 for interface in interfaces:
-                    if (interface.allowUserInteraction == True and allowUserInteraction == True) or (interface.allowAiguillageHandling == True and allowAiguillageHandling == True):
+                    if ((interface.allowUserInteraction is True and allowUserInteraction is True)
+                            or (interface.allowAiguillageHandling is True and allowAiguillageHandling is True)):
                         toDisplay.append(interface)
 
             print("ID |NOM                           |")
@@ -230,7 +224,7 @@ class ConsoleUserHandler(Interface):
             for direction in Direction.directionsList:
                 print(str(count) + ". " + direction)
                 count += 1
-            if (input == True):
+            if (input is True):
                 return Direction.directionsList[self.safeInput(number=True) - 1]
 
         def getValidDirections(self, aiguillage, input=False):
@@ -239,7 +233,7 @@ class ConsoleUserHandler(Interface):
             for direction in aiguillage.directions:
                 print(str(count) + ". " + direction.direction)
                 count += 1
-            if (input == True):
+            if (input is True):
                 return Direction.directionsList[int(self.safeInput()) - 1]
 
         def constructAiguillage(self):
@@ -248,29 +242,29 @@ class ConsoleUserHandler(Interface):
             builder = AiguillageBuilder.getAiguillageBuilder(aiguillageType)
             print("Taille du builder : " + str(len(builder)))
 
-            self.displayInterfacesList(filter = True, allowAiguillageHandling= True)
+            self.displayInterfacesList(filter=True, allowAiguillageHandling=True)
 
             fullInterfaces = self.parent.res('interfaces')
             interfaces = []
             for interface in fullInterfaces:
-                if interface.allowAiguillageHandling == True:
+                if interface.allowAiguillageHandling is True:
                     interfaces.append(interface)
 
-            interface = interfaces[self.safeType('id de l\'interface : ', number = True) - 1]
+            interface = interfaces[self.safeType('id de l\'interface : ', number=True) - 1]
 
             for item, type in builder.items():
-                if type == 'string':
+                if type['type'] == 'string':
                     builder[item] = self.safeType("Entrez : " + item + '\n')
 
-                elif type == 'direction':
+                elif type['type'] == 'direction':
                     print("> Entrez : " + item + "\n")
                     builder[item] = self.getDirection(input=True)
 
-                elif type == 'alimentation':
+                elif type['type'] == 'alimentation':
                     fullInterfaces = self.parent.res("interfaces")
                     alimInterfaces = []
                     for linterface in fullInterfaces:
-                        if linterface.allowAiguillageHandling == True and linterface.compatibleSinglePinMode == True:
+                        if linterface.allowAiguillageHandling is True and linterface.compatibleSinglePinMode is True:
                             alimInterfaces.append(linterface)
                     alimentations = []
                     for linterface in alimInterfaces:
@@ -279,27 +273,27 @@ class ConsoleUserHandler(Interface):
 
                     print("> Entrez : " + item + "\n")
                     self.displayAlimentationList()
-                    truc = self.safeType('id : ', number = True) - 1
+                    truc = self.safeType('id : ', number=True) - 1
                     builder[item] = alimentations[truc]
 
-                elif type == 'pinStateList':
+                elif type['type'] == 'pinStateList':
                     print("> Entrez : " + item)
                     print("  (entrée pour nouvel item, del pour confirmer)\n")
                     pinStates = []
                     quit = False
-                    while quit == False:
+                    while quit is False:
                         print("Nouvel item : Entrez direction : ")
                         direction = self.getDirection(input=True)
 
                         print("Entrez numéro de pin : ")
-                        pinNum = self.safeType('',number = True)
+                        pinNum = self.safeType('', number=True)
 
                         print("Entrez état du pin : ")
                         print("1. éteint")
                         print("2. allumé")
                         valid = False
                         state = None
-                        while valid == False:
+                        while valid is False:
                             state = self.safeInput()
                             if state == '1':
                                 state = AlimentationState.LOW
@@ -326,13 +320,12 @@ class ConsoleUserHandler(Interface):
                     builder[item] = pinStates
             newAiguillage = AiguillageBuilder.constructAiguillage(aiguillageType, builder)
             print("Aiguillage construit ! ")
-            #interface.addAiguillage(newAiguillage)
-            addAiguillage = lambda interface, aiguillage : interface.addAiguillage(aiguillage)
-            self.sync(addAiguillage, interface, newAiguillage)
+            # interface.addAiguillage(newAiguillage)
+            self.sync(lambda interface, aiguillage: interface.addAiguillage(aiguillage), interface, newAiguillage)
             print("\n")
 
-        #END ConsoleThread
-    def __init__(self, res, save = None):
+        # END ConsoleThread
+    def __init__(self, res, save=None):
         super().__init__()
 
         self.processListLock = RLock()

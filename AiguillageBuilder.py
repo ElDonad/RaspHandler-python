@@ -1,10 +1,11 @@
 from EventObj import EventObj
 from aiguillages.SimpleAiguillage import SimpleAiguillage
 
+
 class AiguillageBuilder(EventObj):
     aiguillagesRegister = [
         {
-            'name':'SimpleAiguillage',
+            'name': 'SimpleAiguillage',
             'params': SimpleAiguillage.schema,
             'constructor': SimpleAiguillage
         }
@@ -20,4 +21,14 @@ class AiguillageBuilder(EventObj):
     def getAiguillageBuilder(type):
         for builder in AiguillageBuilder.aiguillagesRegister:
             if builder['name'] == type:
-                return builder['params']
+                return builder['params'].copy()
+
+    @staticmethod
+    def getAiguillageBuilders():
+        toReturn = []
+        for builder in AiguillageBuilder.aiguillagesRegister:
+            toAdd = {}
+            toAdd["name"] = builder["name"]
+            toAdd["params"] = builder["params"]
+            toReturn.append(toAdd)
+        return toReturn
