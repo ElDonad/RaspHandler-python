@@ -28,6 +28,17 @@ class Direction:
         elif direction == Direction.INVALID:
             return 0
 
+    def stringToDirection(direction):
+        print('direction to convert : ' + direction)
+        direction = direction.lower().lstrip()
+        print("direction converted : " + direction)
+        if direction == 'right':
+            return Direction.RIGHT
+        elif direction == 'left':
+            return Direction.LEFT
+        elif direction == 'middle':
+            return Direction.MIDDLE
+
     directionsList = [
         LEFT,
         RIGHT,
@@ -45,6 +56,12 @@ class AlimentationState:
             return gpio.HIGH
         else:
             return gpio.LOW
+
+    def fromBoolToState(state):
+        if state is True:
+            return AlimentationState.HIGH
+        else:
+            return AlimentationState.LOW
 
 
 class PinState:
@@ -64,6 +81,13 @@ class PinState:
             'pin': self.pin,
             'pin_state': self.pinState
         }
+
+    def deserialize(serializedData):
+        print("deserializing...")
+        print("state's direction : ", serializedData['direction'])
+        truc = PinState(serializedData['pin'], serializedData['pin_state'], serializedData['direction'])
+        print(truc)
+        return truc
 
 
 class Aiguillage(EventObj):

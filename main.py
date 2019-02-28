@@ -41,7 +41,7 @@ def restore(args):
         count += 1
 
 
-def res(type):
+def res(type, interfaceId=None):
     if type == 'aiguillages':
         aiguillagesList = []
         for interface in interfaces:
@@ -51,6 +51,11 @@ def res(type):
         return aiguillagesList
     elif type == 'interfaces':
         return interfaces
+    elif type == 'alimentations_from_interface':
+        if interfaceId is not None:
+            interface = interfaces[interfaceId]
+            if interface.allowAiguillageHandling and interface.compatibleSinglePinMode:
+                return interface.alimentations
 
 
 def aiguillageSwitched(aiguillage):

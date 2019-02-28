@@ -32,3 +32,6 @@ class Interface(EventObj):
 
     def onAiguillageSwitched(self, aiguillage):
         print("[INTERFACE]Aiguillage switched")
+
+    def serialize(self):
+        return {'name': self.id}

@@ -2,7 +2,7 @@
 
 from AiguillageHandler import AiguillageHandler
 from pinHandler import gpio
-from Aiguillage import AlimentationState
+from aiguillage import AlimentationState
 
 
 class DirectAiguillageHandler(AiguillageHandler):
@@ -11,6 +11,9 @@ class DirectAiguillageHandler(AiguillageHandler):
     allowUserInteraction = False
     allowAiguillageHandling = True
     id = 'DirectAiguillageHandler'
+
+    aiguillageCoordModel = {}
+    alimCoordModel = {}
 
     def __init__(self, res, data=None):
         super().__init__()
@@ -106,3 +109,10 @@ class DirectAiguillageHandler(AiguillageHandler):
 
     def update(self):
         pass
+
+    def serialize(self):
+        toReturn = {}
+        toReturn['name'] = self.id
+        toReturn['aiguillage_coord_model'] = self.aiguillageCoordModel
+        toReturn['alim_coord_model'] = self.alimCoordModel
+        return toReturn

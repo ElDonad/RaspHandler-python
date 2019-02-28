@@ -1,11 +1,12 @@
 from interface import Interface
+from aiguillage import Direction, PinState, AlimentationState
 from threading import RLock
 import socket
 import select
 import json
 import random
 import string
-import AiguillageBuilder
+from AiguillageBuilder import AiguillageBuilder
 
 
 class Client:
@@ -134,7 +135,7 @@ class NetworkInterface(Interface):
                                         toAdd = aiguillage.serialize()
                                         toAdd['aiguillage_handler_id'] = interfaceId
                                         aiguillagesList.append(toAdd)
-                                        interfaceId += 1
+                                interfaceId += 1
                             answer['event_type'] = 'GotAiguillages'
                             answer['aiguillages'] = aiguillagesList
                             self.sendMessage(loopSocket, json.dumps(answer))
@@ -153,7 +154,9 @@ class NetworkInterface(Interface):
                             interfaceId = 0
                             aiguillagesList = []
                             alimentationsList = []
+                            interfacesList = []
                             for interface in interfaces:
+                                interfacesList.append(interface.serialize())
                                 if interface.allowAiguillageHandling:
                                     for aiguillage in interface.aiguillages:
                                         toAdd = aiguillage.serialize()
@@ -174,16 +177,48 @@ class NetworkInterface(Interface):
                             answer['data'] = {}
                             answer["data"]['aiguillages'] = aiguillagesList
                             answer["data"]["alimentations"] = alimentationsList
+                            answer['data']['interfaces'] = interfacesList
                             self.sendMessage(loopSocket, json.dumps(answer))
 
                         elif eventType == "GetAiguillageBuilders":
                             answer = {}
                             answer["event_type"] = "GotAiguillageBuilders"
-                            answer["data"] = AiguillageBuilder.AiguillageBuilder.getAiguillageBuilders()
+                            answer["data"] = AiguillageBuilder.getAiguillageBuilders()
                             self.sendMessage(loopSocket, json.dumps(answer))
 
                         elif eventType == "AddAiguillage":
                             print(message)
+                            interfaceId = message['data']['aiguillage_handler_id']
+                            interfaces = self.res('interfaces')
+                            interface = None
+                            for linterface in interfaces:
+                                if linterface.id == interfaceId:
+                                    interface = linterface
+
+                            builder = AiguillageBuilder.getAiguillageBuilder(message['data']['aiguillage_type'])
+
+                            for key, param in builder.items():
+                                print(param['type'])
+                                if param['type'] == 'alimentation':
+                                    alimInterfaceId = message["data"][key]['aiguillage_handler_id']
+                                    alimInterface = self.res('interfaces')[alimInterfaceId]
+                                    for alim in alimInterface.alimentations:
+                                        if alim[0]['name'] == message['data']['alimentation']['name']:
+                                            message['data'][key] = alim[1]
+                                elif param['type'] == 'direction':
+                                    message['data'][key] = Direction.stringToDirection(message['data'][key])
+
+                                elif param['type'] == 'pinStateList':
+                                    print("transforming directionList...")
+                                    newPinState = []
+                                    for pinState in message['data'][key]:
+                                        pinState['direction'] = Direction.stringToDirection(pinState['direction'])
+                                        pinState['pin_state'] = AlimentationState.fromBoolToState(pinState['pin_state'])
+                                        newPinState.append(PinState.deserialize(pinState))
+                                    message['data'][key] = newPinState
+                            print('final message : ', message)
+                            newAiguillage = AiguillageBuilder.constructAiguillage(message['data']['aiguillage_type'], message['data'])
+                            interface.addAiguillage(newAiguillage)
 
     def log(message):
         print('[DEBUG] NetworkInterface : ' + message)

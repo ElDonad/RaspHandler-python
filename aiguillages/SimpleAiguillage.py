@@ -29,6 +29,7 @@ class SimpleAiguillage(Aiguillage):
         else:
             if 'postInit' in builderData and builderData['postInit'] is True:
                 return
+            print(builderData['directions'])
             self.directions = builderData['directions']
             self.targetDirection = builderData['defaultDirection']
             self.currentDirection = Direction.INVALID
